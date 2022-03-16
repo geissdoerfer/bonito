@@ -1,3 +1,5 @@
+[![Build Status](https://app.travis-ci.com/geissdoerfer/bonito.svg?branch=master)](https://app.travis-ci.com/geissdoerfer/bonito)
+
 # Bonito connection protocol
 
 This directory contains a Python implementation of the Bonito protocol presented in our [NSDI 2022 paper](https://nes-lab.org/pubs/2022-Geissdoerfer-Bonito.pdf).
