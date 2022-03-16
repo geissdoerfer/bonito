@@ -2,7 +2,9 @@ language: python
 python:
   - "3.9"
 
-install: pip install -e $TRAVIS_BUILD_DIR
+install: pip install -e .
+
+script: pytest
 
 deploy:
   provider: pypi
