@@ -74,14 +74,11 @@ This conversion can take multiple hours per dataset. To spare you from the long 
 
 ## Usage
 
-Load and plot the first 10 minutes of harvesting power trace of two nodes:
+Plot the first 10 minutes of harvesting power trace of two nodes:
 
 ```python
 import h5py
 import matplotlib.pyplot as plt
-from neslab.bonito import pwr2time
-from neslab.bonito import NormalDistribution
-from neslab.bonito import bonito
 
 with h5py.File("pwr_stairs.h5", "r") as hf:
     times = hf["time"][:60_000_000]
@@ -96,11 +93,12 @@ plt.show()
 Convert the power traces of two nodes to sequences of charging times and plot the results (this can take a long time):
 
 ```python
+from neslab.bonito import pwr2time
 
-times, tcharges = pwr2time("pwr_stairs.h5", (0, 4))
+times, tchrg1, tchrg2 = pwr2time("pwr_stairs.h5", (0, 4))
 
-plt.plot(times, tcharges[:, 0])
-plt.plot(times, tcharges[:, 1])
+plt.plot(times, tchrg1)
+plt.plot(times, tchrg2)
 plt.show()
 
 ```
@@ -108,9 +106,10 @@ plt.show()
 Learn the parameters of a normal distribution from one of the charging time traces using stochastic gradient descent:
 
 ```python
+from neslab.bonito import NormalDistribution
 
 dist_model = NormalDistribution()
-for c in tcharges[:, 0]:
+for c in tchrg1:
     dist_model.sgd_update(c)
 
 ```
@@ -118,8 +117,9 @@ for c in tcharges[:, 0]:
 Run the Bonito protocol on the two charging time traces and print the resulting connection interval for every successful encounter:
 
 ```python
+from neslab.bonito import bonito
 
-for ci, success in bonito((tcharges[:,0], tcharges[:,1]), (NormalDistribution, NormalDistribution)):
+for ci, success in bonito((tchrg1, tchrg2), (NormalDistribution, NormalDistribution)):
     if success:
         print(f"successful encounter with connection interval {ci:.3f}s")
 ```
