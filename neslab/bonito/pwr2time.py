@@ -112,7 +112,7 @@ class BatteryfreeDevice(object):
         self._charged = False
 
 
-def pwr2time(input_path: click.Path, pair: tuple, capacity: float = 17e-6, von: float = 3.0, voff: float = 2.4):
+def pwr2time(times, pwr1, pwr2, capacity: float = 17e-6, von: float = 3.0, voff: float = 2.4):
     """Calculates synchronized charging times from two power traces.
 
     In order to obtain realistic 'bivariate' samples of the charging times of two nodes, we have to
@@ -138,41 +138,63 @@ def pwr2time(input_path: click.Path, pair: tuple, capacity: float = 17e-6, von: 
 
     nodes = [BatteryfreeDevice(capacity, von, voff), BatteryfreeDevice(capacity, von, voff)]
 
-    with DataReader(input_path) as dr:
+    # Assume that sampling interval is constant
+    Ts = np.mean(np.diff(times[: min(1000000, len(times))]))
 
-        # Assume that sampling interval is constant
-        Ts = np.mean(np.diff(dr.time[:1000000]))
+    # Stores last time index at which both nodes were fully charged
+    last_charged = 0
 
-        # Stores last time index at which both nodes were fully charged
-        last_charged = 0
+    pwrs = (pwr1, pwr2)
+    for i in range(len(times)):
+        for j, node in enumerate(nodes):
 
-        for i in range(len(dr.time)):
-            for j, node in enumerate(nodes):
+            if not node.charged:
+                node.harvest(Ts * pwrs[j][i])
+                if node.charged:
+                    csi[j].append(i - last_charged)
 
-                if not node.charged:
-                    node.harvest(Ts * dr[j][i])
-                    if node.charged:
-                        csi[j].append(i - last_charged)
+        # When both nodes are fully charged
+        if all([node.charged for node in nodes]):
+            # Log the timestamp when both nodes are charged
+            tsi.append(i)
+            last_charged = i
 
-            # When both nodes are fully charged
-            if all([node.charged for node in nodes]):
-                # Log the timestamp when both nodes are charged
-                tsi.append(i)
-                last_charged = i
+            for node in nodes:
+                node.reset()
 
-                for node in nodes:
-                    node.reset()
+        if i % (len(times) // 100) == 0:
+            print(f"{(100 * i)//len(times)}% done")
 
-            if i % (len(dr.time) // 100) == 0:
-                print(f"{(100 * i)//len(dr.time)}% of pair {pair} done")
-
-        ts = dr.time[tsi]
+    ts = times[tsi]
 
     # Cut the charging times to equal lengths
     for node_idx in range(2):
         csi[node_idx] = csi[node_idx][: len(tsi)]
 
     return ts, np.array(csi[0]) * Ts, np.array(csi[1]) * Ts
+
+
+def db2time(input_path: click.Path, pair: tuple, capacity: float = 17e-6, von: float = 3.0, voff: float = 2.4):
+    """Calculates synchronized charging times from two power traces.
+
+    In order to obtain realistic 'bivariate' samples of the charging times of two nodes, we have to
+    make sure that a sample from one node is taken at the same time as the corresponding sample
+    of the second node. To this end, we run a simple simulation, where two nodes are charged
+    from their corresponding time-synchronized power traces. We note the time until the first
+    node reaches the turn-on threshold and continue the simulation until the second node also
+    reaches the turn-on threshold. Now we have one 'bivariate' sample and restart the simulation
+    from the current time.
+
+    Args:
+        dr: wraps underlying hdf database with power traces
+        pair: the pair of nodes for which to compute synchronized charging times
+        capacity: simulated energy storage capacity in farad
+        v_on: simulated turn-on threshold in volts
+        v_off: simulated turn-off threshold in volts
+    """
+
+    with DataReader(input_path) as dr:
+        return pwr2time(dr.time, dr[pair[0]], dr[pair[1]], capacity, von, voff)
 
 
 @click.command(help="Converts pairwise power traces to charging times")
@@ -191,7 +213,7 @@ def cli(input_path, output_path, capacity, von, voff):
         args.append((input_path, pair, capacity, von, voff))
 
     with Pool(cpu_count()) as pool:
-        results = pool.starmap(pwr2time, args)
+        results = pool.starmap(db2time, args)
 
     with h5py.File(output_path, "w") as hf_out, h5py.File(input_path, "r") as hf_in:
         for arg, (ts, cs0, cs1) in zip(args, results):
@@ -200,12 +222,13 @@ def cli(input_path, output_path, capacity, von, voff):
             ds_time = grp.create_dataset("time", data=ts, dtype="f8")
             ds_time.attrs["unit"] = "second"
 
-            ds = grp.create_dataset("node0", data=cs0, dtype="f8")
-            ds = grp.create_dataset("node1", data=cs1, dtype="f8")
+            ds0 = grp.create_dataset("node0", data=cs0, dtype="f8")
+            ds1 = grp.create_dataset("node1", data=cs1, dtype="f8")
+            dss = (ds0, ds1)
             for i in range(2):
-                ds.attrs["model"] = hf_in["data"][f"node{arg[1][i]}"].attrs["model"]
-                ds.attrs["host"] = hf_in["data"][f"node{arg[1][i]}"].attrs["host"]
-                ds.attrs["unit"] = "second"
+                dss[i].attrs["model"] = hf_in["data"][f"node{arg[1][i]}"].attrs["model"]
+                dss[i].attrs["host"] = hf_in["data"][f"node{arg[1][i]}"].attrs["host"]
+                dss[i].attrs["unit"] = "second"
 
 
 if __name__ == "__main__":

@@ -43,10 +43,10 @@ The data is publicly available at Zenodo. The data is provided as one hdf5 file 
 
 ```
 
-Download the data to `[DATA_PATH]` on your local machine. Most of the example code in this repository works with sequences of charging times. These can be computed from the provided power traces by simulating the charging behavior of a battery-free device. To convert the power traces to charging time traces of a simulated node with a capacity of 17uF, a turn-on voltage of 3V and a turn-off voltage of 2.4V, use the provided command line utility `pwr2time` that gets installed with the Python package:
+Download the data to `{DATA_PATH}` on your local machine. Most of the example code in this repository works with sequences of charging times. These can be computed from the provided power traces by simulating the charging behavior of a battery-free device. To convert the power traces to charging time traces of a simulated node with a capacity of 17uF, a turn-on voltage of 3V and a turn-off voltage of 2.4V, use the provided command line utility `pwr2time` that gets installed with the Python package:
 
 ```
-pwr2time -i [DATA_PATH]/pwr_stairs.h5 -o [DATA_PATH]/tchrg_stairs.h5
+pwr2time -i {DATA_PATH}/pwr_stairs.h5 -o {DATA_PATH}/tchrg_stairs.h5
 ```
 
 The resulting hdf5 file has the following structure
@@ -83,47 +83,61 @@ import h5py
 import matplotlib.pyplot as plt
 
 with h5py.File("pwr_stairs.h5", "r") as hf:
-    times = hf["time"][:60_000_000]
+    ptimes = hf["time"][:60_000_000]
     pwr1 = hf["data"]["node0"][:60_000_000]
     pwr2 = hf["data"]["node4"][:60_000_000]
 
-plt.plot(times, pwr1)
-plt.plot(times, pwr2)
+plt.plot(ptimes, pwr1)
+plt.plot(ptimes, pwr2)
 plt.show()
 ```
 
-Convert the power traces of two nodes to sequences of charging times and plot the results (this can take a long time):
+Convert the power tracesto sequences of charging times and plot the results (this can take a few minutes):
 
 ```python
 from neslab.bonito import pwr2time
 
-times, tchrg1, tchrg2 = pwr2time("pwr_stairs.h5", (0, 4))
+ctimes, tchrg1, tchrg2 = pwr2time(ptimes, pwr1, pwr2)
 
-plt.plot(times, tchrg1)
-plt.plot(times, tchrg2)
+plt.plot(ctimes, tchrg1)
+plt.plot(ctimes, tchrg2)
 plt.show()
-
 ```
 
-Learn the parameters of a normal distribution from one of the charging time traces using stochastic gradient descent:
+Learn the parameters of a normal distribution from one of the charging time traces using stochastic gradient descent and plot the results.
 
 ```python
-from neslab.bonito import NormalDistribution
+import numpy as np
+from neslab.bonito import NormalDistribution as NrmDst
 
-dist_model = NormalDistribution()
-for c in tchrg1:
+means = np.empty((len(ctimes),))
+
+dist_model = NrmDst()
+for i, c in enumerate(tchrg1):
     dist_model.sgd_update(c)
+    means[i] = dist_model._mp[0]
 
+plt.plot(ctimes, tchrg1)
+plt.plot(ctimes, means)
+plt.show()
 ```
 
-Run the Bonito protocol on the two charging time traces and print the resulting connection interval for every successful encounter:
+Run the Bonito protocol on the two charging time traces and plot the resulting connection interval:
 
 ```python
 from neslab.bonito import bonito
 
-for ci, success in bonito((tchrg1, tchrg2), (NormalDistribution, NormalDistribution)):
+cis = np.empty((len(ctimes),))
+for i, (ci, success) in enumerate(bonito((tchrg1, tchrg2), (NrmDst, NrmDst))):
     if success:
-        print(f"successful encounter with connection interval {ci:.3f}s")
+        cis[i] = ci
+    else:
+        cis[i] = np.nan
+
+plt.plot(ctimes, tchrg1)
+plt.plot(ctimes, tchrg2)
+plt.plot(ctimes, cis)
+plt.show()
 ```
 
 
@@ -135,30 +149,30 @@ We provide more involved example scripts in the [examples](./examples) directory
 To plot the power traces of nodes 0 and 2 of the *jogging* dataset downsampled to 100Hz:
 
 ```
-python examples/plot_power.py -i [DATA_PATH]/pwr_jogging.h5 -p 0 2 -s 100
+python examples/plot_power.py -i {DATA_PATH}/pwr_jogging.h5 -p 0 2 -s 100
 ```
 
 To plot the charging times of nodes 2 and 3 of the *stairs* dataset:
 
 ```
-python examples/plot_tcharge.py -i [DATA_PATH]/tchrg_stairs.h5 -p 2 3
+python examples/plot_tcharge.py -i {DATA_PATH}/tchrg_stairs.h5 -p 2 3
 ```
 
 To plot the histograms of the charging times of nodes 2 and 3 of the *stairs* dataset:
 
 ```
-python examples/plot_tcharge.py -i [DATA_PATH]/tchrg_stairs.h5 -p 2 3 --hist
+python examples/plot_tcharge.py -i {DATA_PATH}/tchrg_stairs.h5 -p 2 3 --hist
 ```
 
 To learn the parameters of the charging time distribution of node 4 of the *washer* dataset:
 
 ```
-python examples/learning.py -i [DATA_PATH]/tchrg_washer.h5 -n 4
+python examples/learning.py -i {DATA_PATH}/tchrg_washer.h5 -n 4
 ```
 
 To plot the connection interval and compare the success rate and communication delay of Bonito (with a target probability of 90%), Modest and Greedy on node 1 and 3 of the *cars* dataset:
 
 ```
-python examples/protocols.py -i [DATA_PATH]/tchrg_cars.h5 -p 1 3 -t 0.9
+python examples/protocols.py -i {DATA_PATH}/tchrg_cars.h5 -p 1 3 -t 0.9
 ```
 
