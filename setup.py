@@ -10,7 +10,7 @@ README = (HERE / "README.md").read_text()
 
 setup(
     name="neslab-bonito",
-    version="1.0.2",
+    version="1.0.3",
     description="Implementation of the Bonito connection protocol for battery-free devices",
     long_description=README,
     long_description_content_type="text/markdown",

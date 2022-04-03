@@ -22,7 +22,7 @@ pipenv install neslab.bonito[examples]
 
 ## Data
 
-We provide 32h of time-synchronized energy-harvesting traces from 5 different scenarios involving solar panels and piezoelectric harvesters. The data was recorded with [Shepherd](https://nes-lab.org/pubs/2019-Geissdoerfer-Shepherd.pdf), a measurement tool that records time-synchronized voltage and current traces from one or more energy-harvesting nodes with high rate and resolution.
+We provide 32h of time-synchronized energy-harvesting traces from 5 different scenarios involving solar panels and piezoelectric harvesters via [Zenodo](https://doi.org/10.5281/zenodo.6383042). The data was recorded with [Shepherd](https://nes-lab.org/pubs/2019-Geissdoerfer-Shepherd.pdf), a measurement tool that records time-synchronized voltage and current traces from one or more energy-harvesting nodes with high rate and resolution.
 
 - The *jogging* dataset comprises traces from two participants, each equipped with two piezoelectric harvester at the ankles and a solar panel at the left wrist. The two participants run together for an hour in a public park, including short walking and standing breaks.
 - For the *stairs* dataset, we recorded traces from six solar panels that are embedded into the surface of an outdoor stair in front of a lecture hall. Over the course of one hour, numerous students pass the stairs, leading to temporary shadowing effects on some or all of the solar panels.
@@ -30,7 +30,7 @@ We provide 32h of time-synchronized energy-harvesting traces from 5 different sc
 - The *cars* dataset contains traces from two cars. Each car is equipped with three piezoelectric harvesters mounted on the windshield, the dashboard, and in the trunk. The cars drive for two hours in convoy over a variety of roads.
 - The *washer* dataset includes five traces from piezoelectric harvesters mounted on a WPB4700H industrial washing machine, while the machine runs a washing program with maximum load for 45 minutes.
 
-The data is publicly available at [Zenodo](https://doi.org/10.5281/zenodo.6383042). The data is provided as one hdf5 file per dataset containing time-synchronized power traces with a sampling rate of 100kSps and the following format:
+The data is provided as one hdf5 file per dataset containing time-synchronized power traces with a sampling rate of 100kSps and the following format:
 
 ```bash
 	   .
